@@ -1,0 +1,155 @@
+version: "0.1"
+name: "auto-proteomics"
+purpose: "Route proteomics requests with a clear public-vs-scaffold boundary and keep the shipped v0.x workflow easy to discover."
+
+layer_model:
+  l1: "SKILL.md public entry"
+  l2: "workflow index and routing rules"
+  l3: "runnable shell/python scripts"
+  l4: "references and stable guidance"
+
+public_promise:
+  version: "v0.x"
+  shipped_workflows:
+    - dda-lfq-processed
+  scaffold_only:
+    - dda-identification
+    - dia-quant
+    - phospho-differential
+    - protein-enrichment
+    - multiomics-plan
+  note:
+    - "Only shipped_workflows are part of the public execution promise."
+    - "Scaffold routes may appear in repository structure, but they must not be returned as published recommendations in v0.x."
+
+input_fields:
+  required:
+    - data_type
+    - target_output
+  optional:
+    - goal
+    - acquisition_mode
+    - organism
+    - sample_scale
+    - id_system
+    - stats_goal
+    - integration_scope
+
+value_sets:
+  data_type: [proteomics, phosphoproteomics, interactomics, multi-omics, unknown]
+  acquisition_mode: [dda, dia, tmt, label-free, targeted, unknown]
+  target_output: [identification, quantification, differential-analysis, enrichment, integration-plan, publication-report, unknown]
+  organism: [human, mouse, rat, bacteria, plant, mixed, unknown]
+  sample_scale: [small, medium, large, cohort, unknown]
+  id_system: [uniprot, gene-symbol, ensembl, mixed, unknown]
+  stats_goal: [qc, differential, pathway, network, unknown]
+  integration_scope: [proteomics-only, proteomics-rnaseq, proteomics-metabolomics, full-multiomics, unknown]
+
+routing_rules:
+  - id: dda-lfq-processed
+    status: shipped
+    when:
+      data_type: proteomics
+      acquisition_mode: dda
+      target_output: differential-analysis
+    recommend: [dda-lfq-processed]
+    avoid: [dia-quant, dda-identification]
+    why: "If the user already has processed DDA protein-level results, route directly into the shipped downstream workflow."
+    next:
+      primary: "scripts/workflows/dda_lfq_processed.sh"
+    confidence: high
+
+  - id: dda-identification
+    status: scaffold
+    when:
+      data_type: proteomics
+      acquisition_mode: dda
+      target_output: identification
+    recommend: []
+    scaffold_candidate: dda-identification
+    avoid: [dia-quant]
+    why: "Raw DDA identification belongs to a future route, not the current public execution promise."
+    next:
+      primary: "scripts/workflows/dda_identification.sh"
+    confidence: high
+
+  - id: dia-quantification
+    status: scaffold
+    when:
+      data_type: proteomics
+      acquisition_mode: dia
+      target_output: quantification
+    recommend: []
+    scaffold_candidate: dia-quant
+    avoid: [dda-identification]
+    why: "DIA quantification is planned structure only in v0.x."
+    next:
+      primary: "scripts/workflows/dia_quant.sh"
+    confidence: high
+
+  - id: phospho-differential
+    status: scaffold
+    when:
+      data_type: phosphoproteomics
+      target_output: differential-analysis
+    recommend: []
+    scaffold_candidate: phospho-differential
+    avoid: [protein-only-enrichment]
+    why: "Phosphoproteomics needs site-level handling and is scaffold-only in v0.x."
+    next:
+      primary: "scripts/workflows/phospho_differential.sh"
+    confidence: high
+
+  - id: enrichment-route
+    status: scaffold
+    when:
+      target_output: enrichment
+    recommend: []
+    scaffold_candidate: protein-enrichment
+    avoid: [raw-identification]
+    why: "Enrichment is a future route and should not be presented as shipped execution support yet."
+    next:
+      primary: "scripts/workflows/protein_enrichment.sh"
+    confidence: medium
+
+  - id: multiomics-planning
+    status: scaffold
+    when:
+      data_type: multi-omics
+      target_output: integration-plan
+    recommend: []
+    scaffold_candidate: multiomics-plan
+    avoid: [dda-identification]
+    why: "Cross-omics planning exists as future scaffold, not as a shipped public workflow."
+    next:
+      primary: "scripts/workflows/multiomics_plan.sh"
+    confidence: high
+
+fallback:
+  missing_info_priority:
+    - data_type
+    - acquisition_mode
+    - target_output
+  behavior:
+    - "Ask the smallest missing question set."
+    - "Do not over-promise scaffold routes."
+    - "Recommend dda-lfq-processed only when the request truly fits the shipped processed-input boundary."
+    - "If a scaffold rule matches, return out-of-scope for public v0.x instead of promoting that route."
+    - "Otherwise stay at planning/routing level and make the boundary explicit."
+
+script_map:
+  dda-lfq-processed: "scripts/workflows/dda_lfq_processed.sh"
+  dda-identification: "scripts/workflows/dda_identification.sh"
+  dia-quant: "scripts/workflows/dia_quant.sh"
+  phospho-differential: "scripts/workflows/phospho_differential.sh"
+  protein-enrichment: "scripts/workflows/protein_enrichment.sh"
+  multiomics-plan: "scripts/workflows/multiomics_plan.sh"
+  id-mapping: "scripts/utils/id_mapping.py"
+
+scenario_templates:
+  - "User has processed DDA LFQ proteinGroups results and wants a two-group downstream differential workflow"
+  - "User has raw DDA data and asks for identification; explain that this is future scaffold in public v0.x"
+  - "User asks for DIA quantification; keep routing-level guidance and do not present execution as shipped"
+  - "User asks for phosphoproteomics differential analysis; note scaffold status explicitly"
+  - "User has differential protein table and wants enrichment; note scaffold status explicitly"
+  - "User wants proteomics plus transcriptomics integration strategy; keep this as future planning scaffold"

@@ -1,0 +1,11 @@
+# Build artifacts
+dist/
+
+# VCS and Python cache
+.git/
+__pycache__/
+*.pyc
+
+# Demo or mock outputs must never ship as validation evidence
+examples/*/results/
+
