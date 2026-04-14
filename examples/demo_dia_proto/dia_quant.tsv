@@ -1,0 +1,4 @@
+Protein.Group	Protein.Ids	Protein.Names	Genes	First.Protein.Description	S1	S2	S3
+PG001	P00001	ProtA	GENEA	Demo protein A	10.2	12.8	11.5
+PG002	P00002	ProtB	GENEB	Demo protein B	5.1		5.5
+PG003	P00003	ProtC	GENEC	Demo protein C	18.0	NA	17.4

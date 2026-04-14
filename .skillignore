@@ -9,3 +9,7 @@ __pycache__/
 # Demo or mock outputs must never ship as validation evidence
 examples/*/results/
 
+# Internal planning notes are not part of the public package surface
+NEXT_STEPS.md
+ROADMAP.md
+

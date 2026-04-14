@@ -5,6 +5,9 @@ description: Public OpenClaw skill for low-token routing and downstream analysis
 
 # Auto Proteomics
 
+Author: Guo Xuan 郭轩  
+Contact: xguo608@connect.hkust-gz.edu.cn
+
 `auto-proteomics` is a public `v0.x` skill for processed proteomics downstream work.
 
 The current public promise is intentionally narrow:
@@ -12,7 +15,9 @@ The current public promise is intentionally narrow:
 - one public input family: processed DDA LFQ protein-level tables
 - one public comparison model: `group-a` vs `group-b`
 
-Everything else in this repository should be read as routing context or future scaffold unless a document explicitly marks it as part of the public promise.
+Everything else in this repository should be read as routing context, internal prototype, or future scaffold unless a document explicitly marks it as part of the public promise.
+Presence of a script, schema, or branch document does not mean the route is publicly supported.
+In particular, `dia-quant` is intentionally exposed as an internal prototype route for correct routing and contract validation, not as a shipped public workflow.
 
 ## Use this skill when
 
@@ -37,11 +42,19 @@ Shipped and supported now:
 
 Not promised yet:
 - raw-spectrum search pipelines
-- DIA execution
+- DIA public execution support
 - phosphoproteomics execution
 - enrichment execution
 - multi-omics execution
 - generalized study-design handling beyond the current two-group path
+
+Internal prototype route available for routing only:
+- `dia-quant` may be selected only when the request is explicitly about processed DIA quant tables that fit the checked-in DIA contract
+- selecting `dia-quant` means internal prototype triage, never a public `v0.x` execution recommendation
+
+Important boundary:
+- non-shipped branches may contain scaffold or prototype execution files for internal framework development
+- smaller models must not treat those files as public runnable recommendations unless a route is explicitly marked `shipped`
 
 ## Minimal workflow
 
@@ -86,13 +99,18 @@ The shipped workflow produces:
 ## Repository layers
 
 - `SKILL.md`: public entry and release boundary
-- `references/WORKFLOW_INDEX.yaml`: machine-readable routing and shipped-vs-scaffold map
+- `references/WORKFLOW_INDEX.yaml`: machine-readable routing and shipped-vs-non-shipped map
+- `references/BRANCH_FRAMEWORK.md`: standard branch contract for future routes
+- `references/branches/`: per-branch specs for scaffold and prototype workflows
+- `references/DIA_INPUT_SCHEMA.md`: first narrow schema for DIA prototype intake
 - `scripts/workflows/dda_lfq_processed.sh`: shipped workflow entrypoint
-- `references/*.md`: stable public guidance
+- shipped public guidance lives in documents that explicitly describe the processed DDA `v0.x` path
+- non-shipped reference docs exist for internal framework development and must not be surfaced as public support
 
 ## Read next
 
 - `references/WORKFLOW_INDEX.yaml`
 - `references/RUNTIME_REQUIREMENTS.md`
+- `references/BRANCH_FRAMEWORK.md`
 - `references/DEMO_INPUT_GUIDE.md`
 - `references/DEVELOPMENT_GUIDE.md`

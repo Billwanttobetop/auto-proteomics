@@ -1,6 +1,6 @@
 version: "0.1"
 name: "auto-proteomics"
-purpose: "Route proteomics requests with a clear public-vs-scaffold boundary and keep the shipped v0.x workflow easy to discover."
+purpose: "Route proteomics requests with a clear public-vs-non-shipped boundary and keep the shipped v0.x workflow easy to discover while retaining internal scaffold/prototype route context."
 
 layer_model:
   l1: "SKILL.md public entry"
@@ -12,7 +12,7 @@ public_promise:
   version: "v0.x"
   shipped_workflows:
     - dda-lfq-processed
-  scaffold_only:
+  non_shipped_routes:
     - dda-identification
     - dia-quant
     - phospho-differential
@@ -20,7 +20,9 @@ public_promise:
     - multiomics-plan
   note:
     - "Only shipped_workflows are part of the public execution promise."
-    - "Scaffold routes may appear in repository structure, but they must not be returned as published recommendations in v0.x."
+    - "Any route outside shipped_workflows is non-public in v0.x, including both scaffold and prototype branches."
+    - "Non-shipped routes may appear in repository structure, but they must not be returned as published recommendations in v0.x."
+    - "The DIA route is kept visible as an internal prototype so small models can classify DIA processed-table requests without mislabeling them as shipped."
 
 input_fields:
   required:
@@ -29,15 +31,23 @@ input_fields:
   optional:
     - goal
     - acquisition_mode
+    - input_stage
     - organism
     - sample_scale
     - id_system
     - stats_goal
     - integration_scope
 
+routing_priority:
+  - data_type
+  - acquisition_mode
+  - input_stage
+  - target_output
+
 value_sets:
   data_type: [proteomics, phosphoproteomics, interactomics, multi-omics, unknown]
   acquisition_mode: [dda, dia, tmt, label-free, targeted, unknown]
+  input_stage: [raw-files, processed-table, differential-table, report-ready, unknown]
   target_output: [identification, quantification, differential-analysis, enrichment, integration-plan, publication-report, unknown]
   organism: [human, mouse, rat, bacteria, plant, mixed, unknown]
   sample_scale: [small, medium, large, cohort, unknown]
@@ -51,6 +61,7 @@ routing_rules:
     when:
       data_type: proteomics
       acquisition_mode: dda
+      input_stage: processed-table
       target_output: differential-analysis
     recommend: [dda-lfq-processed]
     avoid: [dia-quant, dda-identification]
@@ -64,6 +75,7 @@ routing_rules:
     when:
       data_type: proteomics
       acquisition_mode: dda
+      input_stage: raw-files
       target_output: identification
     recommend: []
     scaffold_candidate: dda-identification
@@ -73,16 +85,20 @@ routing_rules:
       primary: "scripts/workflows/dda_identification.sh"
     confidence: high
 
-  - id: dia-quantification
-    status: scaffold
+  - id: dia-quant
+    status: prototype
+    visibility: internal
+    public_recommendation: false
+    route_mode: internal-prototype
     when:
       data_type: proteomics
       acquisition_mode: dia
+      input_stage: processed-table
       target_output: quantification
     recommend: []
-    scaffold_candidate: dia-quant
-    avoid: [dda-identification]
-    why: "DIA quantification is planned structure only in v0.x."
+    prototype_candidate: dia-quant
+    avoid: [dda-identification, dda-lfq-processed]
+    why: "DIA quantification has a prototype intake path in v0.x, but it is not part of the public shipped execution promise. Only consider it for processed DIA result tables that fit the checked-in contract, not raw DIA files, not processed DDA tables, and not generic downstream differential requests. Matching this rule means internal prototype triage only, not public workflow recommendation."
     next:
       primary: "scripts/workflows/dia_quant.sh"
     confidence: high
@@ -129,12 +145,17 @@ fallback:
   missing_info_priority:
     - data_type
     - acquisition_mode
+    - input_stage
     - target_output
   behavior:
     - "Ask the smallest missing question set."
-    - "Do not over-promise scaffold routes."
+    - "Resolve route selection in this order: data_type -> acquisition_mode -> input_stage -> target_output."
+    - "Treat input_stage as the main separator between raw identification routes and processed quant or downstream routes."
+    - "Do not over-promise scaffold or prototype routes."
     - "Recommend dda-lfq-processed only when the request truly fits the shipped processed-input boundary."
-    - "If a scaffold rule matches, return out-of-scope for public v0.x instead of promoting that route."
+    - "If a non-shipped rule matches, return the internal route metadata but keep public support false."
+    - "Prototype routes may be used only for internal framework development or explicit prototype work, not as shipped public recommendations."
+    - "Treat DIA processed-table quantification as the only current dia-quant trigger; raw DIA files or generic downstream differential requests must not select it."
     - "Otherwise stay at planning/routing level and make the boundary explicit."
 
 script_map:
@@ -149,7 +170,9 @@ script_map:
 scenario_templates:
   - "User has processed DDA LFQ proteinGroups results and wants a two-group downstream differential workflow"
   - "User has raw DDA data and asks for identification; explain that this is future scaffold in public v0.x"
-  - "User asks for DIA quantification; keep routing-level guidance and do not present execution as shipped"
+  - "User asks for DIA quantification from a processed DIA result table; return dia-quant as an internal prototype route and do not present execution as shipped"
+  - "User says 'analyze my DIA data' but does not say whether the input is raw files or a processed table; ask for input_stage before selecting a route"
+  - "User has processed DIA data but wants differential downstream analysis rather than quantification intake; do not auto-select dia-quant because the current DIA prototype boundary is intake-plus-preview only"
   - "User asks for phosphoproteomics differential analysis; note scaffold status explicitly"
   - "User has differential protein table and wants enrichment; note scaffold status explicitly"
   - "User wants proteomics plus transcriptomics integration strategy; keep this as future planning scaffold"
